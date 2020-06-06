@@ -37,18 +37,38 @@ class Ear:
 		self.client.connect((self.host, self.port))
 
 	def listen(self):
-		data = ""
-		while (string.find(data, "\n.") == -1):
-			data = data + self.client.recv(1024)
-		#print(data)
-		self.word = ""
+		# wait for start recognition
+		data = ''
+		while '<STARTRECOG/>' not in data:
+			recv = self.client.recv(1024)
+			data = data + recv
+			# print 'wait for start recognition'
+			# print '#####data#######'
+			# print(data)
+
+		data = ''
+		while '</RECOGOUT>' not in data:
+			recv = self.client.recv(1024)
+			data = data + recv
+
+		# print '############data###############'
+		# print(data)
+		# print '###############################'
+		# print ''
+
+		self.word = ''
 		for line in data.split('\n'):
 			index = line.find('WORD="')
 		
 			if index != -1:
 				line = line[index + 6:line.find('"', index + 6)]
+				# print('########line##########')
+				# print(line)
+				# print('######################')
+				# print ''
+
 				if line != "[s]":
-					self.word = self.word + line
+					self.word= line
 		
 		self.score = 0
 		for line in data.split('\n'):
@@ -160,6 +180,7 @@ class R2D2:
 	def __init__(self):
 		self.wake_up_flag = False
 		self.end_flag	  = False
+		self.r2d2_state   = 'R2D2 is sleeping...'
 
 		self.eye   = Eye()
 		self.mouse = Mouse()
@@ -170,24 +191,45 @@ class R2D2:
 		return word == self.word_dictionary[key]["word"] and score > self.word_dictionary[key]["threshold"]
 
 	def run(self):
+		if not self.wake_up_flag:
+			for n in range(3):
+				print ''
+			print '----------------------'
+			print(self.r2d2_state)
+			print ''
+			print 'Call R2!'
+			print ''
+
 		self.ear.listen()
 		word  = self.ear.get_word()
 		score = self.ear.get_score()
 			
 		if self.check_word(word,score,"wake_up"):
 			self.wake_up_flag = True
+			self.r2d2_state = 'R2D2 is awake!'
 			self.light.on()
 			self.mouse.random_talk()
 
-		print("word:{},score:{},wake up:{}".format(word,score,self.wake_up_flag))
+		print "You say {}.".format(word)
+		print "(Score:{})".format(score)
+		print ''
+		print(self.r2d2_state)
+		print ""
 
 		if self.wake_up_flag:
 			# R2 Talk
+			print ''
+			print '----------------------'
+			print(self.r2d2_state)
+			print ''
+			print('Talk to R2D2 in the following words!')
 			print(self.mouse.word_dictionary.keys())
 			if word in self.mouse.word_dictionary:
-				print("talk word:{}".format(word))
+				print("You say {}.".format(word))
+				print "(Score:{})".format(score)
 				self.mouse.talk(word,score)
 				self.wake_up_flag = False
+				self.r2d2_state   = 'R2D2 is sleeping...'
 				self.light.off()
 
 			# R2 Shoot
@@ -200,6 +242,8 @@ class R2D2:
 			elif self.check_word(word,score,"end"):
 				self.mouse.sound.play(self.word_dictionary["end"]["filename"])
 				self.end_flag = True
+
+			
 
 	def get_end_flag(self):
 		return self.end_flag
